@@ -6,7 +6,7 @@
 <title>Modular Fretboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --ink: #18130F;
@@ -22,7 +22,7 @@
     --label-w: 68px;
     --font-display: 'EB Garamond', Garamond, 'Times New Roman', serif;
     --font-body: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'Courier Prime', 'Courier New', Courier, monospace;
+    --font-mono: 'Roboto Mono', 'Courier New', Courier, monospace;
   }
 
   * { box-sizing: border-box; }
@@ -116,6 +116,24 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--fog);
+  }
+  .harmonics-field { justify-content: flex-end; }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 0.86rem;
+    color: var(--bone);
+    cursor: pointer;
+    min-height: 38px;
+  }
+  .checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--copper);
+    cursor: pointer;
+    flex: none;
   }
   select, input[type="text"], input[type="number"] {
     background: var(--ink);
@@ -296,7 +314,7 @@
     opacity: 0.55;
   }
 
-  .string-row { height: 54px; }
+  .string-row { height: 58px; }
   .string-line {
     position: absolute;
     left: var(--label-w);
@@ -342,6 +360,26 @@
     border: 1.5px solid var(--copper);
     background: var(--wood-light);
   }
+  .pad.harmonic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1;
+    border-style: dashed;
+    border-color: var(--copper);
+  }
+  .harmonic-tag {
+    font-size: 0.52rem;
+    color: var(--copper);
+    letter-spacing: 0.02em;
+  }
+  .harmonic-note { font-size: 0.66rem; }
+  .half-fret-col { flex: 0 0 34px; min-width: 34px; }
+  .half-fret-col.fret-header { font-size: 0.6rem; }
+  .half-fret-col .pad.harmonic { padding: 5px 2px; }
+  .half-fret-col .harmonic-note { font-size: 0.56rem; }
   .pad.highlighted { box-shadow: 0 0 0 2px var(--steel) inset; background: rgba(91,147,189,0.16); }
   .pad.root-note { box-shadow: 0 0 0 2px var(--rust) inset; background: rgba(163,74,46,0.22); }
   .pad.active {
@@ -405,6 +443,12 @@
         <label for="fretsCount">Frets</label>
         <input type="number" id="fretsCount" min="1" max="36" value="24" />
       </div>
+      <div class="field harmonics-field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="harmonicsToggle" checked />
+          <span>Show natural harmonics</span>
+        </label>
+      </div>
       <div class="field">
         <label for="playMode">Play mode</label>
         <select id="playMode">
@@ -459,7 +503,7 @@
     <div class="fretboard" id="fretboard"></div>
   </section>
 
-  <p class="hint">Click or tap a fret to sound it. Pluck always fades on its own; Hold rings only while you press and stops the moment you let go; Sustain keeps ringing after you release, so press the same fret again to stop it. Open strings show as rings, fretted notes as tiles, and the small dots mark the same reference frets you would find on a real neck. Highlighted notes get a ring; the root of a scale or chord gets a second color.</p>
+  <p class="hint">Click or tap a fret to sound it. Pluck always fades on its own; Hold rings only while you press and stops the moment you let go; Sustain keeps ringing after you release, so press the same fret again to stop it. Open strings show as rings, fretted notes as tiles, and the small dots mark the same reference frets you would find on a real neck. Dashed tiles marked ◆ are natural harmonics — lightly touching the open string there, rather than pressing it down, rings out a higher partial; the label shows what it actually sounds, which is usually not the same note you'd get by fretting that spot normally. The narrow "2½" column exists only for the 7th harmonic, whose true touch point falls between frets rather than on one. Highlighted notes get a ring; the root of a scale or chord gets a second color.</p>
 
 </div>
 
@@ -468,8 +512,8 @@
   'use strict';
 
   // ---------- Music theory helpers ----------
-  var CHROMATIC = ['C','C#/Db','D','D#/Eb','E','F','F#/Gb','G','G#/Ab','A','A#/Bb','B'];
-  var SHARP_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var CHROMATIC = ['C','C\u266F/D\u266D','D','D\u266F/E\u266D','E','F','F\u266F/G\u266D','G','G\u266F/A\u266D','A','A\u266F/B\u266D','B'];
+  var SHARP_NAMES = ['C','C\u266F','D','D\u266F','E','F','F\u266F','G','G\u266F','A','A\u266F','B'];
   var NOTE_TO_PC = {
     'C':0, 'B#':0,
     'C#':1, 'Db':1,
@@ -560,6 +604,42 @@
   var SINGLE_MARKERS = new Set([3,5,7,9,15,17,19,21,27,29,31,33]);
   var DOUBLE_MARKERS = new Set([12,24,36]);
 
+  // ---------- Natural harmonics ----------
+  // Every string on a given instrument shares the same scale length, so the
+  // touch points that isolate a harmonic fall at the same fret on every string;
+  // only the resulting pitch differs (it scales with that string's open pitch).
+  // "semitones" is the nearest equal-tempered interval, used for the printed
+  // note name; actual playback uses the true ratio (harmonic x open frequency),
+  // since most of these partials don't land exactly on equal temperament.
+  // Fret math (from the nut, as a fraction of scale length): the Nth harmonic's
+  // node sits at fret 12*log2(N/(N-1)); it lands within a couple cents of a
+  // whole fret up through the 4th partial, drifts to ~14-16 cents off by the
+  // 5th and 6th, and by the 7th/8th no longer sits on a whole fret at all
+  // (true nodes ~2.67 and ~2.31) - hence the separate half-fret entry below.
+  var HARMONIC_MAP = {
+    2:  { harmonic: 8, semitones: 36 },
+    3:  { harmonic: 6, semitones: 31 },
+    4:  { harmonic: 5, semitones: 28 },
+    5:  { harmonic: 4, semitones: 24 },
+    7:  { harmonic: 3, semitones: 19 },
+    9:  { harmonic: 5, semitones: 28 },
+    12: { harmonic: 2, semitones: 12 },
+    16: { harmonic: 5, semitones: 28 },
+    19: { harmonic: 3, semitones: 19 },
+    24: { harmonic: 4, semitones: 24 }
+  };
+  // The 7th partial's true node (~fret 2.67) sits closer to the midpoint
+  // between frets 2 and 3 than to either whole fret, so it gets its own
+  // narrow half-fret column instead of squeezing into HARMONIC_MAP.
+  var HALF_FRET_HARMONIC = { afterFret: 2, label: '2\u00BD', harmonic: 7, semitones: 34 };
+  var HARMONIC_ORDINAL = { 2: '2nd', 3: '3rd', 4: '4th', 5: '5th', 6: '6th', 7: '7th', 8: '8th' };
+  var HARMONIC_CENTS_NOTE = {
+    3: '\u22482\u00A2 sharp of equal temperament',
+    5: '\u224814\u00A2 flat of equal temperament',
+    6: '\u22482\u00A2 sharp of equal temperament',
+    7: '\u224831\u00A2 flat of equal temperament \u2014 the "harmonic seventh", not close to any tempered note'
+  };
+
   // ---------- State ----------
   var state = {
     tuning: [],
@@ -584,6 +664,7 @@
   var clearHighlightBtn = document.getElementById('clearHighlightBtn');
   var specPlate = document.getElementById('specPlate');
   var boardEl = document.getElementById('fretboard');
+  var harmonicsToggle = document.getElementById('harmonicsToggle');
 
   // ---------- Audio engine ----------
   var audioCtx = null;
@@ -623,13 +704,13 @@
     Array.from(activeVoices.keys()).forEach(stopVoiceImmediately);
   }
 
-  function noteOn(id, midi) {
+  function noteOn(id, freq, isHarmonic) {
     var ctx = ensureAudio();
     stopVoiceImmediately(id);
     var now = ctx.currentTime;
     var osc = ctx.createOscillator();
-    osc.type = waveSelect.value;
-    osc.frequency.setValueAtTime(midiToFreq(midi), now);
+    osc.type = isHarmonic ? 'sine' : waveSelect.value;
+    osc.frequency.setValueAtTime(freq, now);
     var gain = ctx.createGain();
     osc.connect(gain).connect(masterGain);
 
@@ -685,8 +766,17 @@
 
   // ---------- Board interaction ----------
   function triggerNoteOn(pad) {
-    var midi = parseInt(pad.dataset.midi, 10);
-    if (Number.isNaN(midi)) return;
+    var isHarmonic = pad.classList.contains('harmonic');
+    var freq;
+    if (isHarmonic) {
+      freq = parseFloat(pad.dataset.harmonicFreq);
+    } else {
+      var midi = parseInt(pad.dataset.midi, 10);
+      if (Number.isNaN(midi)) return;
+      freq = midiToFreq(midi);
+    }
+    if (!freq || Number.isNaN(freq)) return;
+
     var id = pad.dataset.string + '-' + pad.dataset.fret;
     var mode = playModeSelect.value;
 
@@ -698,7 +788,7 @@
     }
 
     pad.classList.add('active');
-    noteOn(id, midi);
+    noteOn(id, freq, isHarmonic);
     if (mode === 'pluck') {
       setTimeout(function () { pad.classList.remove('active'); }, 1500);
     }
@@ -754,10 +844,41 @@
     return d;
   }
 
+  function buildHarmonicPad(hInfo, openMidi, stringIndex, fretKey, fretLabelForAria) {
+    var trueFreq = hInfo.harmonic * midiToFreq(openMidi);
+    var nominalMidi = openMidi + hInfo.semitones;
+    var nominalPc = ((nominalMidi % 12) + 12) % 12;
+    var hName = midiToDisplayName(nominalMidi);
+    var ordinal = HARMONIC_ORDINAL[hInfo.harmonic];
+    var centsNote = HARMONIC_CENTS_NOTE[hInfo.harmonic];
+    var pad = document.createElement('div');
+    pad.className = 'pad harmonic';
+    pad.tabIndex = 0;
+    pad.setAttribute('role', 'button');
+    pad.dataset.pc = String(nominalPc);
+    pad.dataset.harmonicFreq = String(trueFreq);
+    pad.dataset.string = String(stringIndex);
+    pad.dataset.fret = fretKey;
+    var tag = document.createElement('span');
+    tag.className = 'harmonic-tag';
+    tag.textContent = '\u25C6 ' + ordinal;
+    var noteSpan = document.createElement('span');
+    noteSpan.className = 'harmonic-note';
+    noteSpan.textContent = hName;
+    pad.appendChild(tag);
+    pad.appendChild(noteSpan);
+    var titleText = 'Natural harmonic, ' + ordinal + ' partial \u2014 sounds ' + hName + (centsNote ? ' (' + centsNote + ')' : '');
+    pad.title = titleText;
+    pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', ' + fretLabelForAria + ', ' + titleText);
+    return pad;
+  }
+
   function renderBoard() {
     boardEl.innerHTML = '';
     var fretsCount = state.frets;
     var n = state.tuning.length;
+    var showHarmonics = harmonicsToggle.checked;
+    var showHalfFret = showHarmonics && fretsCount > HALF_FRET_HARMONIC.afterFret;
 
     var headerRow = document.createElement('div');
     headerRow.className = 'fret-row header-row';
@@ -767,6 +888,12 @@
       h.className = 'fret-header' + (f === 0 ? ' open-col' : '');
       h.textContent = f;
       headerRow.appendChild(h);
+      if (showHalfFret && f === HALF_FRET_HARMONIC.afterFret) {
+        var hh = document.createElement('div');
+        hh.className = 'fret-header half-fret-col';
+        hh.textContent = HALF_FRET_HARMONIC.label;
+        headerRow.appendChild(hh);
+      }
     }
     boardEl.appendChild(headerRow);
 
@@ -782,6 +909,9 @@
         m.innerHTML = '<span class="dot"></span>';
       }
       markerRow.appendChild(m);
+      if (showHalfFret && f2 === HALF_FRET_HARMONIC.afterFret) {
+        markerRow.appendChild(document.createElement('div')).className = 'marker-cell half-fret-col';
+      }
     }
     boardEl.appendChild(markerRow);
 
@@ -804,22 +934,38 @@
         var cell = document.createElement('div');
         cell.className = 'fret-cell' + (f3 === 0 ? ' open-col' : '');
         if (openMidi != null) {
-          var midi = openMidi + f3;
-          var pc = ((midi % 12) + 12) % 12;
-          var pad = document.createElement('div');
-          pad.className = 'pad' + (f3 === 0 ? ' open-pad' : '');
-          pad.tabIndex = 0;
-          pad.setAttribute('role', 'button');
-          pad.dataset.midi = String(midi);
-          pad.dataset.pc = String(pc);
-          pad.dataset.string = String(stringIndex);
-          pad.dataset.fret = String(f3);
-          var name = midiToDisplayName(midi);
-          pad.textContent = name;
-          pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', fret ' + f3 + ', ' + name);
+          var hInfo = showHarmonics ? HARMONIC_MAP[f3] : null;
+          var pad;
+          if (hInfo) {
+            pad = buildHarmonicPad(hInfo, openMidi, stringIndex, String(f3), 'fret ' + f3);
+          } else {
+            var midi = openMidi + f3;
+            var pc = ((midi % 12) + 12) % 12;
+            pad = document.createElement('div');
+            pad.className = 'pad' + (f3 === 0 ? ' open-pad' : '');
+            pad.tabIndex = 0;
+            pad.setAttribute('role', 'button');
+            pad.dataset.midi = String(midi);
+            pad.dataset.pc = String(pc);
+            pad.dataset.string = String(stringIndex);
+            pad.dataset.fret = String(f3);
+            var name = midiToDisplayName(midi);
+            pad.textContent = name;
+            pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', fret ' + f3 + ', ' + name);
+          }
           cell.appendChild(pad);
         }
         rowEl.appendChild(cell);
+
+        if (showHalfFret && f3 === HALF_FRET_HARMONIC.afterFret) {
+          var halfCell = document.createElement('div');
+          halfCell.className = 'fret-cell half-fret-col';
+          if (openMidi != null) {
+            var halfPad = buildHarmonicPad(HALF_FRET_HARMONIC, openMidi, stringIndex, HALF_FRET_HARMONIC.afterFret + 'h', 'fret ' + HALF_FRET_HARMONIC.label);
+            halfCell.appendChild(halfPad);
+          }
+          rowEl.appendChild(halfCell);
+        }
       }
       boardEl.appendChild(rowEl);
     }
@@ -957,6 +1103,10 @@
     markCustom();
     renderBoard();
     updateSpecPlate();
+  });
+
+  harmonicsToggle.addEventListener('change', function () {
+    renderBoard();
   });
 
   // ---------- Highlight controls ----------
