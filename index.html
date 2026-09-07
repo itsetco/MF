@@ -285,22 +285,20 @@
     font-weight: 600;
     text-align: center;
   }
-  .header-row { height: 26px; }
+  .header-row { height: 24px; }
   .fret-header {
-    flex: 1 1 0;
-    min-width: 58px;
+    flex: none;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.66rem;
     color: var(--fog);
     border-right: 1px solid rgba(138,133,120,0.25);
   }
   .fret-header.open-col { color: var(--copper); border-right: 3px solid var(--bone); }
 
-  .marker-row { height: 16px; }
+  .marker-row { height: 14px; }
   .marker-cell {
-    flex: 1 1 0;
-    min-width: 58px;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -309,12 +307,12 @@
   }
   .marker-cell.open-col { border-right: 3px solid transparent; }
   .marker-cell .dot {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 5px; height: 5px; border-radius: 50%;
     background: var(--steel);
     opacity: 0.55;
   }
 
-  .string-row { height: 58px; }
+  .string-row { height: 60px; }
   .string-line {
     position: absolute;
     left: var(--label-w);
@@ -327,8 +325,7 @@
     z-index: 0;
   }
   .fret-cell {
-    flex: 1 1 0;
-    min-width: 58px;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,21 +336,29 @@
 
   .pad {
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     font-weight: 500;
     color: var(--bone);
     background: var(--wood);
     border: 1px solid rgba(237,230,214,0.16);
     border-radius: 7px;
-    padding: 5px 5px;
-    min-width: 2.9em;
+    padding: 4px 3px;
     text-align: center;
+    line-height: 1.05;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
     transition: transform 110ms ease, box-shadow 110ms ease, background 110ms ease, color 110ms ease;
   }
+  .pad.dual-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+  .pad.dual-line .note-line { font-size: 0.56rem; }
   .pad:hover { border-color: var(--copper); }
   .pad.open-pad {
     border-radius: 999px;
@@ -371,15 +376,12 @@
     border-color: var(--copper);
   }
   .harmonic-tag {
-    font-size: 0.52rem;
+    font-size: 0.5rem;
     color: var(--copper);
     letter-spacing: 0.02em;
   }
-  .harmonic-note { font-size: 0.66rem; }
-  .half-fret-col { flex: 0 0 34px; min-width: 34px; }
-  .half-fret-col.fret-header { font-size: 0.6rem; }
-  .half-fret-col .pad.harmonic { padding: 5px 2px; }
-  .half-fret-col .harmonic-note { font-size: 0.56rem; }
+  .pad.harmonic .note-line { font-size: 0.5rem; }
+  .half-fret-col.fret-header { font-size: 0.56rem; }
   .pad.highlighted { box-shadow: 0 0 0 2px var(--steel) inset; background: rgba(91,147,189,0.16); }
   .pad.root-note { box-shadow: 0 0 0 2px var(--rust) inset; background: rgba(163,74,46,0.22); }
   .pad.active {
@@ -445,7 +447,7 @@
       </div>
       <div class="field harmonics-field">
         <label class="checkbox-label">
-          <input type="checkbox" id="harmonicsToggle" checked />
+          <input type="checkbox" id="harmonicsToggle" />
           <span>Show natural harmonics</span>
         </label>
       </div>
@@ -639,6 +641,22 @@
     6: '\u22482\u00A2 sharp of equal temperament',
     7: '\u224831\u00A2 flat of equal temperament \u2014 the "harmonic seventh", not close to any tempered note'
   };
+
+  // ---------- Fret geometry ----------
+  // Real fretboards taper: each fret is 2^(-1/12) (~94.4%) the width of the
+  // one before it, since that's the same ratio that shortens the string
+  // length by a semitone. FRET_BASE_WIDTH is fret 1's width; the rest follow
+  // the curve down to FRET_MIN_WIDTH, which keeps the highest frets (where
+  // the real taper would be a sliver of a pixel) usable and readable.
+  var FRET_BASE_WIDTH = 54;
+  var FRET_MIN_WIDTH = 28;
+  var OPEN_FRET_WIDTH = 56;
+  var HALF_FRET_WIDTH = 30;
+
+  function fretWidth(fret) {
+    if (fret === 0) return OPEN_FRET_WIDTH;
+    return Math.max(FRET_MIN_WIDTH, FRET_BASE_WIDTH * Math.pow(2, -(fret - 1) / 12));
+  }
 
   // ---------- State ----------
   var state = {
@@ -844,6 +862,25 @@
     return d;
   }
 
+  // Fills el with the note for `midi`: a single line for natural notes, or
+  // two stacked "note-line" spans (sharp name, flat name) for altered ones -
+  // narrower per line than "C\u266f/D\u266d4" on one line, which is what makes the
+  // tapered high frets legible.
+  function fillNoteContent(el, midi) {
+    var pc = ((midi % 12) + 12) % 12;
+    var octave = Math.floor(midi / 12) - 1;
+    var entry = CHROMATIC[pc];
+    var names = entry.indexOf('/') === -1 ? [entry] : entry.split('/');
+    if (names.length > 1) el.classList.add('dual-line');
+    names.forEach(function (nm) {
+      var span = document.createElement('span');
+      span.className = 'note-line';
+      span.textContent = nm + octave;
+      el.appendChild(span);
+    });
+    return names.length > 1;
+  }
+
   function buildHarmonicPad(hInfo, openMidi, stringIndex, fretKey, fretLabelForAria) {
     var trueFreq = hInfo.harmonic * midiToFreq(openMidi);
     var nominalMidi = openMidi + hInfo.semitones;
@@ -862,11 +899,8 @@
     var tag = document.createElement('span');
     tag.className = 'harmonic-tag';
     tag.textContent = '\u25C6 ' + ordinal;
-    var noteSpan = document.createElement('span');
-    noteSpan.className = 'harmonic-note';
-    noteSpan.textContent = hName;
     pad.appendChild(tag);
-    pad.appendChild(noteSpan);
+    fillNoteContent(pad, nominalMidi);
     var titleText = 'Natural harmonic, ' + ordinal + ' partial \u2014 sounds ' + hName + (centsNote ? ' (' + centsNote + ')' : '');
     pad.title = titleText;
     pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', ' + fretLabelForAria + ', ' + titleText);
@@ -886,11 +920,13 @@
     for (var f = 0; f <= fretsCount; f++) {
       var h = document.createElement('div');
       h.className = 'fret-header' + (f === 0 ? ' open-col' : '');
+      h.style.flex = '0 0 ' + fretWidth(f) + 'px';
       h.textContent = f;
       headerRow.appendChild(h);
       if (showHalfFret && f === HALF_FRET_HARMONIC.afterFret) {
         var hh = document.createElement('div');
         hh.className = 'fret-header half-fret-col';
+        hh.style.flex = '0 0 ' + HALF_FRET_WIDTH + 'px';
         hh.textContent = HALF_FRET_HARMONIC.label;
         headerRow.appendChild(hh);
       }
@@ -903,6 +939,7 @@
     for (var f2 = 0; f2 <= fretsCount; f2++) {
       var m = document.createElement('div');
       m.className = 'marker-cell' + (f2 === 0 ? ' open-col' : '');
+      m.style.flex = '0 0 ' + fretWidth(f2) + 'px';
       if (DOUBLE_MARKERS.has(f2)) {
         m.innerHTML = '<span class="dot"></span><span class="dot"></span>';
       } else if (SINGLE_MARKERS.has(f2)) {
@@ -910,7 +947,10 @@
       }
       markerRow.appendChild(m);
       if (showHalfFret && f2 === HALF_FRET_HARMONIC.afterFret) {
-        markerRow.appendChild(document.createElement('div')).className = 'marker-cell half-fret-col';
+        var hm = document.createElement('div');
+        hm.className = 'marker-cell half-fret-col';
+        hm.style.flex = '0 0 ' + HALF_FRET_WIDTH + 'px';
+        markerRow.appendChild(hm);
       }
     }
     boardEl.appendChild(markerRow);
@@ -933,6 +973,7 @@
       for (var f3 = 0; f3 <= fretsCount; f3++) {
         var cell = document.createElement('div');
         cell.className = 'fret-cell' + (f3 === 0 ? ' open-col' : '');
+        cell.style.flex = '0 0 ' + fretWidth(f3) + 'px';
         if (openMidi != null) {
           var hInfo = showHarmonics ? HARMONIC_MAP[f3] : null;
           var pad;
@@ -949,9 +990,8 @@
             pad.dataset.pc = String(pc);
             pad.dataset.string = String(stringIndex);
             pad.dataset.fret = String(f3);
-            var name = midiToDisplayName(midi);
-            pad.textContent = name;
-            pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', fret ' + f3 + ', ' + name);
+            fillNoteContent(pad, midi);
+            pad.setAttribute('aria-label', 'String ' + (stringIndex + 1) + ', fret ' + f3 + ', ' + midiToDisplayName(midi));
           }
           cell.appendChild(pad);
         }
@@ -960,6 +1000,7 @@
         if (showHalfFret && f3 === HALF_FRET_HARMONIC.afterFret) {
           var halfCell = document.createElement('div');
           halfCell.className = 'fret-cell half-fret-col';
+          halfCell.style.flex = '0 0 ' + HALF_FRET_WIDTH + 'px';
           if (openMidi != null) {
             var halfPad = buildHarmonicPad(HALF_FRET_HARMONIC, openMidi, stringIndex, HALF_FRET_HARMONIC.afterFret + 'h', 'fret ' + HALF_FRET_HARMONIC.label);
             halfCell.appendChild(halfPad);
