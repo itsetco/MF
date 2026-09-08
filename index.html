@@ -648,7 +648,7 @@
   // length by a semitone. FRET_BASE_WIDTH is fret 1's width; the rest follow
   // the curve down to FRET_MIN_WIDTH, which keeps the highest frets (where
   // the real taper would be a sliver of a pixel) usable and readable.
-  var FRET_BASE_WIDTH = 54;
+  var FRET_BASE_WIDTH = 60;
   var FRET_MIN_WIDTH = 28;
   var OPEN_FRET_WIDTH = 56;
   var HALF_FRET_WIDTH = 30;
@@ -1065,6 +1065,7 @@
         markCustom();
         renderBoard();
         updateSpecPlate();
+        saveSettings();
       });
 
       wrap.appendChild(idx);
@@ -1115,9 +1116,85 @@
     updateSpecPlate();
   }
 
+  // ---------- Persistence ----------
+  // Prefer the artifact storage API (window.storage) so settings survive a
+  // refresh inside Claude.ai - plain localStorage is not supported there.
+  // Fall back to localStorage only when this file is opened on its own
+  // (double-clicked, hosted elsewhere), where window.storage won't exist.
+  var SETTINGS_KEY = 'settings';
+  var LOCAL_KEY = 'modular-fretboard-settings';
+
+  function hasArtifactStorage() {
+    return typeof window !== 'undefined' && !!window.storage && typeof window.storage.get === 'function';
+  }
+
+  function gatherSettings() {
+    return {
+      preset: presetSelect.value,
+      tuning: state.tuning.slice(),
+      frets: state.frets,
+      playMode: playModeSelect.value,
+      wave: waveSelect.value,
+      volume: volumeInput.value,
+      harmonicsOn: harmonicsToggle.checked,
+      highlighted: Array.from(state.highlighted),
+      root: state.root
+    };
+  }
+
+  function saveSettings() {
+    var json;
+    try { json = JSON.stringify(gatherSettings()); } catch (e) { return; }
+    if (hasArtifactStorage()) {
+      window.storage.set(SETTINGS_KEY, json, false).catch(function () { /* ignore, keep working in-memory */ });
+    } else {
+      try { localStorage.setItem(LOCAL_KEY, json); } catch (e) { /* ignore, e.g. private browsing */ }
+    }
+  }
+
+  function loadSettings() {
+    if (hasArtifactStorage()) {
+      return window.storage.get(SETTINGS_KEY, false).then(function (result) {
+        try { return (result && result.value) ? JSON.parse(result.value) : null; }
+        catch (e) { return null; }
+      }).catch(function () { return null; });
+    }
+    return new Promise(function (resolve) {
+      try {
+        var raw = localStorage.getItem(LOCAL_KEY);
+        resolve(raw ? JSON.parse(raw) : null);
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  function applyLoadedSettings(saved) {
+    if (!saved || typeof saved !== 'object') return;
+    if (Array.isArray(saved.tuning) && saved.tuning.length > 0) {
+      state.tuning = saved.tuning.slice();
+    }
+    if (typeof saved.frets === 'number' && saved.frets > 0) {
+      state.frets = Math.max(1, Math.min(36, saved.frets));
+    }
+    if (typeof saved.preset === 'string') presetSelect.value = saved.preset;
+    if (typeof saved.playMode === 'string') playModeSelect.value = saved.playMode;
+    if (typeof saved.wave === 'string') waveSelect.value = saved.wave;
+    if (saved.volume != null) volumeInput.value = saved.volume;
+    if (typeof saved.harmonicsOn === 'boolean') harmonicsToggle.checked = saved.harmonicsOn;
+    if (Array.isArray(saved.highlighted)) state.highlighted = new Set(saved.highlighted);
+    if (typeof saved.root === 'number' || saved.root === null) state.root = saved.root;
+
+    stringsCountInput.value = String(state.tuning.length);
+    fretsCountInput.value = String(state.frets);
+    renderTuningInputs();
+    renderBoard();
+    updateSpecPlate();
+    syncPcButtons();
+  }
+
   presetSelect.addEventListener('change', function () {
     if (presetSelect.value === 'custom') return;
     applyPreset(presetSelect.value);
+    saveSettings();
   });
 
   commitOnEnter(stringsCountInput);
@@ -1133,6 +1210,7 @@
     renderTuningInputs();
     renderBoard();
     updateSpecPlate();
+    saveSettings();
   });
 
   fretsCountInput.addEventListener('change', function () {
@@ -1144,11 +1222,17 @@
     markCustom();
     renderBoard();
     updateSpecPlate();
+    saveSettings();
   });
 
   harmonicsToggle.addEventListener('change', function () {
     renderBoard();
+    saveSettings();
   });
+
+  playModeSelect.addEventListener('change', saveSettings);
+  waveSelect.addEventListener('change', saveSettings);
+  volumeInput.addEventListener('change', saveSettings);
 
   // ---------- Highlight controls ----------
   function syncPcButtons() {
@@ -1175,6 +1259,7 @@
         }
         syncPcButtons();
         applyHighlights();
+        saveSettings();
       });
       pcButtonsContainer.appendChild(btn);
     });
@@ -1214,6 +1299,7 @@
     state.root = rootPc;
     syncPcButtons();
     applyHighlights();
+    saveSettings();
   });
 
   clearHighlightBtn.addEventListener('click', function () {
@@ -1221,6 +1307,7 @@
     state.root = null;
     syncPcButtons();
     applyHighlights();
+    saveSettings();
   });
 
   // ---------- Init ----------
@@ -1230,6 +1317,9 @@
     buildPatternSelect();
     applyPreset('guitar');
     syncPcButtons();
+    loadSettings().then(function (saved) {
+      if (saved) applyLoadedSettings(saved);
+    });
   }
 
   init();
